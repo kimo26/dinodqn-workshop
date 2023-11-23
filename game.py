@@ -13,7 +13,7 @@ import base64
 from time import sleep
 
 class Game:
-    def __init__(self):
+    def __init__(self,debug = True):
         game_url = 'chrome://dino'
 
         options = Options()
@@ -28,20 +28,42 @@ class Game:
             self.driver.get(game_url)
         except WebDriverException:
             pass
-
+        
         sleep(2)
         self.jump()
-        sleep(3)
+        
+        if debug:
+            self.fig, self.ax = plt.subplots()
+            self.image = None
 
-        self.fig, self.ax = plt.subplots()
-        self.image = None
-
-        self.getScreen()
-        sleep(10)
+        
 
     def jump(self):
-        self.action_chains.key_down(Keys.ARROW_UP).perform()
+        javascript = '''
+            var event = new KeyboardEvent('keydown',{
+                key: ' ',
+                code: 'Space',
+                keyCode : 32,
+                charCode : 32,
+                which : 32
+            });
+            document.dispatchEvent(event);
+        '''
+        self.driver.execute_script(javascript)
 
+    def getScore(self):
+        javascript = '''
+            return Runner.instance_.distanceMeter.digits;
+        '''
+        raw_score = self.driver.execute_script(javascript)
+        score = int(''.join(raw_score))
+        return score
+    def isGameOver(self):
+        javascript = '''
+            return Runner.instance_.crashed;
+        '''
+        crashed = self.driver.execute_script(javascript)
+        return crashed
     def show(self, img):
         if self.image is None:
             self.image = self.ax.imshow(img, animated=True)
@@ -49,8 +71,14 @@ class Game:
             self.image.set_data(img)
 
         plt.draw()
-        plt.pause(0.033)  # Approximately 30fps
-
+        plt.pause(0.03)  # Approximately 30fps
+    def restart(self):
+        javascript = '''
+            Runner.instance_.restart();
+        '''
+        self.driver.execute_script(javascript)
+        sleep(0.2)
+        return True
     def getScreen(self, debug=True):
         leading = len('data:image/png;base64,')
         canvas = 'document.querySelector("#main-frame-error > div.runner-container > canvas")'
@@ -68,5 +96,8 @@ g = Game()
 try:
     while True:
         g.getScreen()
+        if g.isGameOver():
+            g.restart()
+        print(f'score: {g.getScore()}, is crashed: {g.isGameOver()}')
 finally:
     g.driver.quit()
