@@ -11,6 +11,7 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 import base64
 from time import sleep
+import cv2
 
 class Game:
     def __init__(self,debug = True):
@@ -65,13 +66,8 @@ class Game:
         crashed = self.driver.execute_script(javascript)
         return crashed
     def show(self, img):
-        if self.image is None:
-            self.image = self.ax.imshow(img, animated=True)
-        else:
-            self.image.set_data(img)
-
-        plt.draw()
-        plt.pause(0.03)  # Approximately 30fps
+        cv2.imshow('Game Screen', img)
+        cv2.waitKey(1)
     def restart(self):
         javascript = '''
             Runner.instance_.restart();
@@ -85,11 +81,22 @@ class Game:
         img = self.driver.execute_script(f'return {canvas}.toDataURL();')
 
         img = img[leading:]
-        img = np.array(Image.open(BytesIO(base64.b64decode(img))))
+        img = np.array(Image.open(BytesIO(base64.b64decode(img))))[:,:,:3]
+        img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+        #img = np.array(Image.fromarray(img).resize((250,100)))
+        img = np.uint8(img)
+        img = cv2.Canny(img,threshold1=120,threshold2=150)
+        img = np.array(img)
 
+
+        #print(img.shape) grayscale
+
+        #print(np.max(img)) max val is 255
         if debug:
             self.show(img)
 
+        #normalise - values normalise between 0 and 1
+        img = img/255.
         return img
 
 g = Game()
