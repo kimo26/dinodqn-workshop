@@ -98,7 +98,8 @@ class Game:
         #normalise - values normalise between 0 and 1
         img = img/255.
         return img
-
+    def close(self):
+        self.driver.quit()
 g = Game()
 try:
     while True:
